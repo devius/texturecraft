@@ -14,6 +14,7 @@ mod es;
 mod fr;
 mod it;
 mod ja;
+mod ka;
 mod ko;
 mod pt_br;
 mod zh_hans;
@@ -29,7 +30,7 @@ pub struct Language {
     pub table: &'static [(&'static str, &'static str)],
 }
 
-const COUNT: usize = 10;
+const COUNT: usize = 11;
 
 pub static LANGUAGES: [Language; COUNT] = [
     Language { code: "en", name: "English", english: "English", table: &[] },
@@ -42,6 +43,7 @@ pub static LANGUAGES: [Language; COUNT] = [
     Language { code: "zh-Hans", name: "简体中文", english: "Chinese (Simplified)", table: zh_hans::TABLE },
     Language { code: "ko", name: "한국어", english: "Korean", table: ko::TABLE },
     Language { code: "ar", name: "العربية", english: "Arabic", table: ar::TABLE },
+    Language { code: "ka", name: "ქართული", english: "Georgian", table: ka::TABLE },
 ];
 
 static MAPS: [OnceLock<HashMap<&'static str, &'static str>>; COUNT] = [const { OnceLock::new() }; COUNT];
@@ -274,9 +276,17 @@ mod tests",
         assert_eq!(trf("Saved {path}", &[("path", &"a.tcraft")]), "Saved a.tcraft");
         assert_eq!(trf("{a} of {b} {c}", &[("a", &1), ("b", &2)]), "1 of 2 {c}");
         assert_eq!(trf("{unclosed", &[]), "{unclosed");
-        for (locale, code) in
-            [("de-AT", "de"), ("pt_PT.UTF-8", "pt-BR"), ("zh-Hant-TW", "zh-Hans"), ("ja", "ja"), ("ko_KR", "ko"), ("ar-EG", "ar"), ("nl-NL", "en"), ("", "en")]
-        {
+        for (locale, code) in [
+            ("de-AT", "de"),
+            ("pt_PT.UTF-8", "pt-BR"),
+            ("zh-Hant-TW", "zh-Hans"),
+            ("ja", "ja"),
+            ("ko_KR", "ko"),
+            ("ar-EG", "ar"),
+            ("ka-GE", "ka"),
+            ("nl-NL", "en"),
+            ("", "en"),
+        ] {
             assert_eq!(language_for_locale(locale), code, "{locale}");
         }
         set_language("de");
