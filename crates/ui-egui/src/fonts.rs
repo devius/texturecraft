@@ -1,5 +1,5 @@
-//! CJK and Arabic fallback fonts for the UI. egui's default fonts have no Japanese, Chinese,
-//! Korean or Arabic glyphs, so translated UIs (and such layer or file names) need more fonts.
+//! CJK, Arabic and Georgian fallback fonts for the UI. egui's default fonts have no Japanese, Chinese,
+//! Korean, Arabic or Georgian glyphs, so translated UIs (and such layer or file names) need more fonts.
 //! They come from:
 //!
 //! 1. craft-fonts, embedded at build time when `CRAFT_FONTS_DIR` points at a checkout (optional;
@@ -38,10 +38,11 @@ pub enum Script {
     Chinese,
     Korean,
     Arabic,
+    Georgian,
 }
 
 impl Script {
-    pub const ALL: [Script; 4] = [Script::Japanese, Script::Chinese, Script::Korean, Script::Arabic];
+    pub const ALL: [Script; 5] = [Script::Japanese, Script::Chinese, Script::Korean, Script::Arabic, Script::Georgian];
 
     /// The script a UI language needs beyond Latin.
     pub fn of_language(code: &str) -> Option<Script> {
@@ -50,6 +51,7 @@ impl Script {
             "zh-Hans" => Some(Script::Chinese),
             "ko" => Some(Script::Korean),
             "ar" => Some(Script::Arabic),
+            "ka" => Some(Script::Georgian),
             _ => None,
         }
     }
@@ -61,6 +63,7 @@ impl Script {
             Script::Chinese => "Hans",
             Script::Korean => "Kore",
             Script::Arabic => "Arab",
+            Script::Georgian => "Geor",
         }
     }
 
@@ -76,6 +79,7 @@ impl Script {
                 Script::Chinese => &["msyh.ttc", "simsun.ttc", "simhei.ttf"],
                 Script::Korean => &["malgun.ttf", "gulim.ttc"],
                 Script::Arabic => &["segoeui.ttf", "tahoma.ttf", "arial.ttf"],
+                Script::Georgian => &["segoeui.ttf", "sylfaen.ttf", "arial.ttf"],
             };
             v.extend(files.iter().map(|f| (fonts.join(f), 0)));
         } else if cfg!(target_os = "macos") {
@@ -86,9 +90,23 @@ impl Script {
                 }
                 Script::Korean => &["/System/Library/Fonts/AppleSDGothicNeo.ttc"],
                 Script::Arabic => &["/System/Library/Fonts/SFArabic.ttf", "/System/Library/Fonts/Supplemental/GeezaPro.ttc"],
+                // Arial Unicode (added below) draws Georgian.
+                Script::Georgian => &[],
             };
             v.extend(files.iter().map(|f| (PathBuf::from(f), 0)));
             v.push((PathBuf::from("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"), 0));
+        } else if self == Script::Georgian {
+            for f in [
+                "/usr/share/fonts/truetype/noto/NotoSansGeorgian-Regular.ttf",
+                "/usr/share/fonts/noto/NotoSansGeorgian-Regular.ttf",
+                "/usr/share/fonts/google-noto/NotoSansGeorgian-Regular.ttf",
+                "/usr/local/share/fonts/noto/NotoSansGeorgian-Regular.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+                "/usr/local/share/fonts/dejavu/DejaVuSans.ttf",
+            ] {
+                v.push((PathBuf::from(f), 0));
+            }
         } else if self == Script::Arabic {
             for f in [
                 "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
@@ -104,7 +122,7 @@ impl Script {
         } else {
             // Noto Sans CJK collections hold JP, KR, SC, TC and HK faces, in that order.
             let face = match self {
-                Script::Japanese | Script::Arabic => 0,
+                Script::Japanese | Script::Arabic | Script::Georgian => 0,
                 Script::Korean => 1,
                 Script::Chinese => 2,
             };
@@ -277,6 +295,7 @@ mod tests {
         assert_eq!(Script::of_language("zh-Hans"), Some(Script::Chinese));
         assert_eq!(Script::of_language("ko"), Some(Script::Korean));
         assert_eq!(Script::of_language("ar"), Some(Script::Arabic));
+        assert_eq!(Script::of_language("ka"), Some(Script::Georgian));
         assert_eq!(Script::of_language("de"), None);
         for l in &crate::i18n::LANGUAGES {
             // Past the Latin blocks and their diacritics.
