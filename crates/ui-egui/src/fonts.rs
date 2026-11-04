@@ -90,8 +90,8 @@ impl Script {
                 }
                 Script::Korean => &["/System/Library/Fonts/AppleSDGothicNeo.ttc"],
                 Script::Arabic => &["/System/Library/Fonts/SFArabic.ttf", "/System/Library/Fonts/Supplemental/GeezaPro.ttc"],
-                // Arial Unicode (added below) draws Georgian.
-                Script::Georgian => &[],
+                // SF Georgian has Mtavruli; Arial Unicode (added below) predates it.
+                Script::Georgian => &["/System/Library/Fonts/SFGeorgian.ttf"],
             };
             v.extend(files.iter().map(|f| (PathBuf::from(f), 0)));
             v.push((PathBuf::from("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"), 0));

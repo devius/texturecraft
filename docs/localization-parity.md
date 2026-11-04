@@ -55,7 +55,7 @@ UI language needs them or the language picker shows every language's own name:
    Windows; Hiragino, PingFang / STHeiti and Apple SD Gothic Neo on macOS; Noto Sans CJK, WenQuanYi,
    Droid Sans Fallback and Nanum Gothic on Linux and FreeBSD. Arabic: Segoe UI / Tahoma / Arial on
    Windows, SF Arabic / Geeza Pro on macOS, Noto Sans Arabic or DejaVu Sans on Linux and FreeBSD. Georgian: Segoe UI / Sylfaen / Arial on
-   Windows, Arial Unicode on macOS, Noto Sans Georgian or DejaVu Sans on Linux and FreeBSD.
+   Windows, SF Georgian (then Arial Unicode) on macOS, Noto Sans Georgian or DejaVu Sans on Linux and FreeBSD.
 
 **Web limitation:** a browser page can't read system fonts, so the web build shows CJK text only
 with the fonts it embeds: Japanese (and most shared Han characters) Arabic and Georgian when built with
