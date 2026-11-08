@@ -313,7 +313,7 @@ pub const TABLE: &[(&str, &str)] = &[
     ("Eraser", "საშლელი"),
     ("Exclusion", "გამორიცხვა"),
     ("Expand or collapse the folder", "საქაღალდის გაშლა ან აკეცვა"),
-    ("Export", "ექსპორტი"),
+    ("Export", "ექსპორტირება"),
     ("Export Mesh...", "ბადის ექსპორტირება..."),
     ("Export Textures...", "ტექსტურების ექსპორტირება..."),
     ("Export mesh", "ბადის ექსპორტირება"),
