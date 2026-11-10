@@ -1191,8 +1191,14 @@ pub const TABLE: &[(&str, &str)] = &[
     ("Baking {map} ({n}/{total})", "გამოცხობა: {map} ({n}/{total})"),
     ("Baking {map} ({n}/{total}), texture set {set} of {sets}", "გამოცხობა: {map} ({n}/{total}), ტექსტურების ნაკრები {set} / {sets}"),
     ("Follow Newest Map", "უახლესი რუკის მიყოლა"),
-    ("Painting is paused while a bake is shown. Cancel the bake or wait for it to finish.", "ხატვა შეჩერებულია, სანამ გამოცხობა ჩანს. გააუქმეთ გამოცხობა ან დაელოდეთ მის დასრულებას."),
-    ("What the 3D view shows while the bake runs: the newest finished map, one finished map, or the material. Maps not baked yet show a neutral value.", "რას აჩვენებს 3D ხედი გამოცხობის დროს: უახლეს დასრულებულ რუკას, ერთ დასრულებულ რუკას ან მასალას. ჯერ გამოუცხობელი რუკები ნეიტრალურ მნიშვნელობას აჩვენებს."),
+    (
+        "Painting is paused while a bake is shown. Cancel the bake or wait for it to finish.",
+        "ხატვა შეჩერებულია, სანამ გამოცხობა ჩანს. გააუქმეთ გამოცხობა ან დაელოდეთ მის დასრულებას.",
+    ),
+    (
+        "What the 3D view shows while the bake runs: the newest finished map, one finished map, or the material. Maps not baked yet show a neutral value.",
+        "რას აჩვენებს 3D ხედი გამოცხობის დროს: უახლეს დასრულებულ რუკას, ერთ დასრულებულ რუკას ან მასალას. ჯერ გამოუცხობელი რუკები ნეიტრალურ მნიშვნელობას აჩვენებს.",
+    ),
     ("Bake an ID map (F8) to pick colors from the mesh.", "ბადიდან ფერების ასარჩევად გამოაცხვეთ ID რუკა (F8)."),
     ("Colors", "ფერები"),
     ("Check for Updates...", "განახლებების შემოწმება..."),
