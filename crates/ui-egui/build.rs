@@ -12,7 +12,11 @@ use std::path::PathBuf;
 /// The UI faces TextureCraft embeds (family, style) per manifest: desktop, then web (the web build
 /// has a download budget: of the CJK faces only the Japanese one, ~4.5 MB).
 const MANIFESTS: &[(&str, Faces, Faces)] = &[
-    ("fonts/manifest.txt", &[("BIZ UDPGothic", "Regular"), ("Noto Sans CJK SC", "Regular"), ARABIC, GEORGIAN], &[("BIZ UDPGothic", "Regular"), ARABIC, GEORGIAN]),
+    (
+        "fonts/manifest.txt",
+        &[("BIZ UDPGothic", "Regular"), ("Noto Sans CJK SC", "Regular"), ARABIC, GEORGIAN],
+        &[("BIZ UDPGothic", "Regular"), ARABIC, GEORGIAN],
+    ),
     // The interface font, regular and semibold (0.8 MB).
     (LATIN_MANIFEST, LATIN, LATIN),
 ];

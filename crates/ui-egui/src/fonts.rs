@@ -99,11 +99,9 @@ impl Script {
             for dir in ["/usr/share/fonts/truetype/noto", "/usr/share/fonts/noto", "/usr/share/fonts/google-noto", "/usr/local/share/fonts/noto"] {
                 v.push((PathBuf::from(dir).join(noto), 0));
             }
-            for f in [
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-                "/usr/local/share/fonts/dejavu/DejaVuSans.ttf",
-            ] {
+            for f in
+                ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/local/share/fonts/dejavu/DejaVuSans.ttf"]
+            {
                 v.push((PathBuf::from(f), 0));
             }
         } else {
