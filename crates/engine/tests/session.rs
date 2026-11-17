@@ -587,6 +587,72 @@ fn curvature_generators_take_a_mode_and_detail_sizes() {
 }
 
 #[test]
+fn generators_take_blur_balance_and_contrast() {
+    let mut state = session();
+    execute(&mut state, "layer.add.fill", &json!({})).unwrap();
+    execute(&mut state, "mask.add.black", &Value::Null).unwrap();
+    let added = execute(&mut state, "effect.add.generator", &json!({"generator": "dirt", "blur": 0.25})).unwrap();
+    let effect = added["effect"].clone();
+
+    execute(&mut state, "effect.set", &json!({"effect": effect, "balance": 0.75, "contrast": 2.0})).unwrap();
+    let inspect = execute(&mut state, "project.inspect", &Value::Null).unwrap().to_string();
+    assert!(inspect.contains(r#""blur":0.25"#) && inspect.contains(r#""balance":0.75"#), "{inspect}");
+    assert!(inspect.contains(r#""contrast":1.0"#), "contrast is clamped to 0..1: {inspect}");
+
+    execute(&mut state, "effect.set", &json!({"effect": effect, "resolution": "custom", "customResolution": 512, "resolutionFactor": -9})).unwrap();
+    let inspect = execute(&mut state, "project.inspect", &Value::Null).unwrap().to_string();
+    assert!(inspect.contains(r#""resolution":{"custom":512,"factor":-3,"mode":"Custom"}"#), "the factor is clamped to 1/8: {inspect}");
+    assert!(execute(&mut state, "effect.set", &json!({"effect": effect, "resolution": "huge"})).is_err(), "unknown resolutions are rejected");
+}
+
+#[test]
+fn a_generator_input_reads_a_uniform_value_or_its_mesh_map_again() {
+    let mut state = session();
+    execute(&mut state, "layer.add.fill", &json!({})).unwrap();
+    execute(&mut state, "mask.add.black", &Value::Null).unwrap();
+    let effect = execute(&mut state, "effect.add.generator", &json!({"generator": "dirt"})).unwrap()["effect"].clone();
+
+    execute(&mut state, "effect.set", &json!({"effect": effect, "input": "ambientOcclusion", "inputValue": 0.25})).unwrap();
+    let inspect = execute(&mut state, "project.inspect", &Value::Null).unwrap().to_string();
+    assert!(inspect.contains(r#""inputs":{"ambientOcclusion":{"uniform":[0.25,0.25,0.25]}}"#), "{inspect}");
+
+    let wrong_input = execute(&mut state, "effect.set", &json!({"effect": effect, "input": "curvature", "inputValue": 0.5}));
+    assert!(wrong_input.is_err(), "dirt reads ambient occlusion, not curvature");
+    let missing_image = execute(&mut state, "effect.set", &json!({"effect": effect, "input": "ambientOcclusion", "inputImage": "nothing.png"}));
+    assert!(missing_image.is_err(), "the image must be a resource of the project");
+    let two_sources = execute(&mut state, "effect.set", &json!({"effect": effect, "input": "ambientOcclusion", "inputValue": 0.5, "inputBaked": true}));
+    assert!(two_sources.is_err(), "an input takes one source");
+
+    execute(&mut state, "effect.set", &json!({"effect": effect, "input": "ambientOcclusion", "inputBaked": true})).unwrap();
+    let inspect = execute(&mut state, "project.inspect", &Value::Null).unwrap().to_string();
+    assert!(!inspect.contains(r#""inputs""#), "the mesh map is read again: {inspect}");
+}
+
+#[test]
+fn changing_generator_kind_keeps_the_effect_identity_and_settings() {
+    let mut state = session();
+    execute(&mut state, "layer.add.fill", &json!({})).unwrap();
+    execute(&mut state, "mask.add.black", &Value::Null).unwrap();
+    let effect = execute(&mut state, "effect.add.generator", &json!({"generator": "dirt"})).unwrap()["effect"].as_u64().unwrap();
+    execute(&mut state, "effect.set", &json!({"effect": effect, "name": "Keep me", "opacity": 0.4, "level": 0.2})).unwrap();
+    execute(&mut state, "effect.set", &json!({"effect": effect, "input": "ambientOcclusion", "inputValue": 0.25})).unwrap();
+    let later = execute(&mut state, "effect.add.generator", &json!({"generator": "position"})).unwrap()["effect"].as_u64().unwrap();
+
+    execute(&mut state, "effect.set", &json!({"effect": effect, "generator": "ambientOcclusion"})).unwrap();
+
+    let (owner, edited) = state.doc.project.effect(texturecraft_core::LayerId(effect)).unwrap();
+    assert!(matches!(&edited.kind, texturecraft_core::EffectKind::Generator(generator)
+        if generator.kind == texturecraft_core::GeneratorKind::AmbientOcclusion
+            && generator.level == 0.2
+            && matches!(generator.inputs.get(&texturecraft_core::BakedMap::AmbientOcclusion), Some(texturecraft_core::Source::Uniform([0.25, 0.25, 0.25])))));
+    assert_eq!(edited.name, "Keep me");
+    assert_eq!(edited.opacity, 0.4);
+    let layer = state.doc.project.layer(owner).unwrap();
+    let ids: Vec<u64> = layer.mask.as_ref().unwrap().effects.iter().map(|item| item.id.0).collect();
+    assert_eq!(ids, vec![effect, later]);
+}
+
+#[test]
 fn unparseable_color_param_returns_error() {
     let mut s = session();
     let err = execute(&mut s, "layer.add.fill", &json!({"color": "#fff"})).unwrap_err();

@@ -17,7 +17,7 @@ const MANIFESTS: &[(&str, Faces, Faces)] = &[
         &[("BIZ UDPGothic", "Regular"), ("Noto Sans CJK SC", "Regular"), ARABIC, GEORGIAN],
         &[("BIZ UDPGothic", "Regular"), ARABIC, GEORGIAN],
     ),
-    // The interface font, regular and semibold (0.8 MB).
+    // The interface font has regular and semibold faces
     (LATIN_MANIFEST, LATIN, LATIN),
 ];
 /// The Arabic face (0.8 MB, so the web build has it too).
@@ -44,6 +44,7 @@ fn main() {
             Err(e) => println!("cargo::warning=building without craft-fonts: CRAFT_FONTS_DIR={}: {e}", dir.display()),
         }
     }
+
     src.push_str("];\n");
     let out = PathBuf::from(std::env::var_os("OUT_DIR").unwrap_or_default()).join("craft_fonts.rs");
     if let Err(e) = std::fs::write(&out, src) {
@@ -58,6 +59,7 @@ fn craft_fonts(dir: &std::path::Path, rel: &str, desktop: &[(&str, &str)], web: 
     if rel == LATIN_MANIFEST && !manifest.exists() {
         return Ok(String::new());
     }
+
     let text = std::fs::read_to_string(&manifest).map_err(|e| format!("{}: {e}", manifest.display()))?;
     let wasm = std::env::var("CARGO_CFG_TARGET_ARCH").is_ok_and(|a| a == "wasm32");
     let wanted = if wasm { web } else { desktop };
@@ -67,9 +69,11 @@ fn craft_fonts(dir: &std::path::Path, rel: &str, desktop: &[(&str, &str)], web: 
         let [family, style, file, scripts, ..] = f.as_slice() else {
             return Err(format!("malformed manifest line: {line}"));
         };
+
         if !wanted.contains(&(*family, *style)) {
             continue;
         }
+
         let mut path = dir.join(file).canonicalize().map_err(|e| format!("{file}: {e}"))?;
         println!("cargo::rerun-if-changed={}", path.display());
         if rel == LATIN_MANIFEST {
@@ -78,6 +82,7 @@ fn craft_fonts(dir: &std::path::Path, rel: &str, desktop: &[(&str, &str)], web: 
             std::fs::write(&out, without_private_use(&bytes).map_err(|e| format!("{file}: {e}"))?).map_err(|e| format!("{}: {e}", out.display()))?;
             path = out;
         }
+
         let scripts: Vec<String> = scripts.split(',').map(|s| format!("{:?}", s.trim())).collect();
         let _ = writeln!(
             out,
@@ -86,6 +91,7 @@ fn craft_fonts(dir: &std::path::Path, rel: &str, desktop: &[(&str, &str)], web: 
             path.display().to_string(),
         );
     }
+
     Ok(out)
 }
 

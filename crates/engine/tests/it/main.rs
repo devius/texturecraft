@@ -2,6 +2,7 @@
 //! Keep feature tests in their own modules; the standalone session.rs target remains available.
 
 mod bake;
+mod bake_checks;
 mod bake_resolution;
 mod bake_settings;
 mod bake_tiles;
@@ -10,6 +11,7 @@ mod content_effects;
 mod export_colour_space;
 mod filter_swap;
 mod filters;
+mod generator_inputs;
 mod high_poly_missed;
 mod instances;
 mod materialcraft_link;
@@ -24,6 +26,7 @@ mod polygon_fill;
 mod project_recovery;
 mod sample;
 mod thumbs;
+mod tool_availability;
 mod tools;
 mod udim;
 mod uv_strokes;

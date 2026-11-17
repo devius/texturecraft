@@ -26,6 +26,14 @@ struct Globals {
     refr: vec4<f32>,     // x screen-space refraction on (1), y lods of the scene behind, z refraction depth (world units), w -
     highlight: vec4<f32>, // rgb highlighted set's edge color in the scene (before exposure and tone mapping), a opacity
     highlight_shift: vec4<f32>, // xy sideways shift of each highlight line copy (clip units), zw -
+    bake_high: vec4<f32>, // bake mode: rgb high poly color, a -
+    bake_matching_error: vec4<f32>, // rgb color where the bake's rays miss the high poly, a its strength (0 hidden)
+    bake_cage: vec4<f32>, // rgb cage surface color, a opacity
+    bake_cage_wire: vec4<f32>, // rgb cage wireframe color, a opacity
+    bake_missing_seam: vec4<f32>, // rgb color of hard edges without a UV seam, a opacity
+    bake_neutral_color: vec4<f32>, // rgb the neutral material's color, a its reflection samples this frame
+    bake_neutral: vec4<f32>, // x roughness, y metallic, z AO intensity of the neutral material, w on (1)
+    bake_bent_normal: vec4<f32>, // x, y how much the bent normal (in the aux texture) turns the diffuse light and dims reflections, zw -
 };
 
 @group(0) @binding(0) var<uniform> g: Globals;
@@ -403,8 +411,8 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
     let hu = textureSample(t_height, samp, uv - vec2<f32>(0.0, ts.y)).r;
     let hd = textureSample(t_height, samp, uv + vec2<f32>(0.0, ts.y)).r;
 
-    // Tangent-space normal: height gradient (+Y = up the image) combined with the normal channel.
-    // Same slope rule as texture export: strength 1 tilts 45° for a height change of 1 over 1/16 of the width.
+    // Match export: a unit height over 1/16 of the width tilts 45°
+    // Combine the height gradient with the tangent-space normal
     let k = g.mode.z * dims.x / 16.0 * tile_scale(uv);
     let n_height = normalize(vec3<f32>(-(hr - hl) * 0.5 * k, (hd - hu) * 0.5 * k, 1.0));
     var n_detail = snorm8(nrm_s);
@@ -418,6 +426,7 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
         if (ch >= 11) {
             return unlit(lobe_view(ch, lobes, sheen_t, nrm_t.a, emis_t.a, extra));
         }
+
         switch ch {
             case 0: { return unlit(data_out(base_s.rgb)); }
             case 1: { return unlit(data_out(vec3<f32>(orm.b))); }
@@ -435,6 +444,7 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
     if (mode == 2) {
         return unlit(raw_out(aux.rgb));
     }
+
     if (mode == 3) {
         let c = floor(uv * 32.0);
         let chk = (c.x + c.y) - 2.0 * floor((c.x + c.y) * 0.5);
@@ -446,7 +456,11 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
         return unlit(data_out((col + tint) * diff));
     }
 
-    // Opacity: dithered alpha test (a new pattern per accumulated frame, so it averages out).
+    if (g.bake_neutral.w > 0.5) {
+        return Shaded(neutral_color(n, n_geo, v, i.wpos, orm.r, aux.rgb), vec3<f32>(0.0));
+    }
+
+    // Change the alpha dither each frame so accumulation smooths it
     if (base_s.a < hash12(i.clip.xy + g.material.z * vec2<f32>(17.0, 59.0))) {
         discard;
     }
@@ -459,25 +473,27 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
     var f0 = mix(vec3<f32>(0.08 * orm.a), albedo, metal);
     var diffuse_col = albedo * (1.0 - metal);
     if (g.material.x > 0.5) {
-        // Specular/glossiness: the Specular color is F0 and base color the diffuse color, with
-        // the energy the specular takes removed (roughness already is 1 - glossiness).
+        // Specular color gives F0; remove its energy from diffuse
         f0 = hgt.gba;
         diffuse_col = albedo * (1.0 - max(f0.r, max(f0.g, f0.b)));
     }
-    // Transmission: that part of the dielectric base refracts instead of reflecting diffusely.
+
+    // Transmission removes energy from the dielectric diffuse base
     let trans = extra.b * (1.0 - metal);
     diffuse_col *= 1.0 - trans;
 
-    // The extra lobes; their defaults (weights 0) leave the base shading as it is.
+    // Zero lobe weights preserve the base shading
     let coat_w = lobes.r;
     let coat_rough = clamp(lobes.g, 0.045, 1.0);
     let aniso = lobes.b;
     let sheen_col = sheen_t.rgb * sheen_t.a;
     let sheen_max = max3(sheen_col);
     let sheen_rough = clamp(nrm_t.a, 0.07, 1.0);
-    // Subsurface scattering: wrapped diffuse, wider for the channels the scatter color carries further.
+
+    // Scatter color controls each channel's diffuse wrap
     let wrap = emis_t.a * g.scatter.xyz;
-    // Anisotropy: GGX roughness stretched along the mesh tangent turned by the angle (0..1 → 0..π).
+
+    // Stretch GGX along the tangent rotated by 0..π
     let a = rough * rough;
     let at = max(a * (1.0 + aniso), 0.002);
     let ab = max(a * (1.0 - aniso), 0.002);
@@ -486,8 +502,8 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
     let ta1 = ta0 - n * dot(n, ta0);
     let ta = ta1 * inverseSqrt(max(dot(ta1, ta1), 1e-8));
     let ba = cross(n, ta);
-    // The clear coat follows the mesh normal (not the normal and height channels), turned by the
-    // coat normal channel where it is painted (the flat default keeps the mesh normal exactly).
+
+    // Coat normals perturb the geometric normal independently of base detail
     var n_c = n_geo;
     let cn = coat_normal_ts(extra);
     if (coat_w > 0.0 && max(abs(cn.x), abs(cn.y)) > 0.004) {
@@ -495,7 +511,8 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
     }
     let nov_c = clamp(abs(dot(n_c, v)), 1e-4, 1.0);
     let coat_t = 1.0 - coat_w * schlick(0.04, nov_c);
-    // What reaches the layers below: the coat's transmission and the sheen albedo scaling.
+
+    // Coat transmission and sheen albedo limit energy reaching the base
     var base_scale = coat_t;
     var sheen_e = 0.0;
     if (sheen_max > 0.0) {
@@ -506,12 +523,13 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
     let diffuse = sh_irradiance(n, wrap) * diffuse_col * ao;
     var r = reflect(-v, n);
     if (aniso > 0.0) {
-        // Bent reflection vector: the standard real-time approximation of anisotropic IBL.
+        // Bend the reflection to approximate anisotropic IBL
         let bent = cross(cross(ba, v), ba);
         r = reflect(-v, normalize(mix(n, bent, aniso * clamp(5.0 * rough, 0.0, 1.0))));
     }
     let pre = textureSampleLevel(env_tex, env_samp, env_uv(r), rough * g.env.y).rgb;
-    // Horizon fading: reflections that point below the geometric surface are dimmed.
+
+    // Fade reflections below the geometric surface
     let horizon = clamp(1.0 + 1.3 * dot(r, n_geo), 0.0, 1.0);
     let spec = pre * env_brdf(f0, rough, nov) * ao * horizon * horizon;
     var layers = vec3<f32>(0.0);
@@ -525,16 +543,14 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
     }
 
     if (trans > 0.0) {
-        // shortcut: one refraction interface (no exit); the path tracer refracts through the
-        // whole mesh.
+        // Approximate one refraction interface; the path tracer also handles the exit
         var td = refract(-v, n, 1.0 / max(g.material.w, 1.0));
         if (dot(td, td) < 1e-6) {
             td = reflect(-v, n);
         }
         var behind = textureSampleLevel(env_tex, env_samp, env_uv(td), rough * g.env.y).rgb;
         if (g.refr.x > 0.5) {
-            // Screen-space refraction: the opaque scene where the refracted ray lands on screen,
-            // over the environment where that shows nothing (or the ray leaves the view).
+            // Composite the refracted screen sample over the environment fallback
             let p = g.view_proj * vec4<f32>(i.wpos + td * g.refr.z, 1.0);
             let s = p.xy / max(p.w, 1e-6);
             let suv = vec2<f32>(s.x * 0.5 + 0.5, 0.5 - s.y * 0.5);
@@ -563,7 +579,8 @@ fn shade_mesh(i: VOut, front: bool) -> Shaded {
             dv = ggx_dv(a, nov, nol, noh);
         }
         let f = f0 + (vec3<f32>(1.0) - f0) * pow(1.0 - voh, 5.0);
-        // Energy-conserving wrapped Lambert (plain Lambert where nothing scatters).
+
+        // Normalize wrapped Lambert to conserve energy
         let diff_nol = max((nol_raw + wrap) / ((1.0 + wrap) * (1.0 + wrap)), vec3<f32>(0.0));
         direct_diffuse = (vec3<f32>(1.0) - f) * diffuse_col / PI * diff_nol * (g.light.w * base_scale);
         direct = ((vec3<f32>(1.0) - f) * diffuse_col / PI * diff_nol + dv * f * nol) * (g.light.w * base_scale);
